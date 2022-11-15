@@ -7,12 +7,13 @@ This will be my (i.e. Baran's) project page for the assignments of the course *P
 
 Here is my GitHub repository: https://github.com/bbayraktaroglu/IODS-project
 
+
 #### Some thoughts about the course: 
 
 I have never learned R in my previous programming courses, so this was a little bit of an overwhelming start for me. This is also officially my first time using GitHub. I tried to use it before for some personal projects, but failed to understand its general use. 
 I recently heard about the course through the DONASCI emailing list, and I previously heard about the course from a friend of mine who also suggested for me to take the course. I expect to learn whatever I can about data science in an advanced level. The last time I took a rigorous statistics course (or any programming language course) was during my bachelor studies.
 
-#### Thoughts about Exercise set 1 and the [R for Health Data Science](https://argoshare.is.ed.ac.uk/healthyr_book/pipe-.html)  book:
+#### Thoughts about Exercise set 1 and the [R for Health Data Science](https://argoshare.is.ed.ac.uk/healthyr_book/pipe-.html) book:
 
 It seems that the exercise set and the first few chapters of the book provide the basic essentials for learning R as a programming language, with its own quirks and conventions. 
 I found the "pipe function", i.e. "%>%", the most out of ordinary way of assigning an input to a function. It is sometimes hard to understand why it is used instead of the generic way of computing a function. Other than this, R seems to be an intuitive language, with easy to understand commands. 
