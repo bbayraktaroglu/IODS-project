@@ -1,13 +1,98 @@
-# Insert chapter 2 title here
+### Assignment 2: Linear Regression
 
-*Describe the work you have done this week and summarize your learning.*
+This week I have worked on linear regression. To be honest, last time I studied this subject was almost 8 years ago during my bachelor studies, and although the subject is quite easy, I still find some parts quite fascinating. I have never worked with R, so this week was more of an introduction to hands-on R experience compared to last week's assignment. R syntax seems intuitive, compared to less user-friendly languages like C or even Java.
 
-- Describe your work and results clearly. 
-- Assume the reader has an introductory course level understanding of writing and reading R code as well as statistical methods.
-- Assume the reader has no previous knowledge of your data or the more advanced methods you are using.
+#### Data wrangling
+
+The task for data wrangling seemed daunting at first, but the individual steps were already built from the ground up in the exercise set, so I have not gotten into any trouble.
+
 
 ```{r}
 date()
 ```
+#### Setting up the packages
 
-Here we go again...
+```{r, warning=FALSE, message =FALSE}
+library(tidyverse)
+library(dplyr)
+library(ggplot2) 
+library(GGally)            
+library(purrr)
+```
+
+#### Part 1: Reading the dataset
+
+```{r,echo=FALSE}
+# reading the required file for the assignment
+students2014 <- read.csv("learning2014.csv", sep = ",", header = TRUE)
+```
+
+We now compute the dimensions of the data and look at its structure:
+
+```{r}
+dim(students2014)
+str(students2014)
+```
+*Description of the dataset:*
+
+There are 166 observations (each representing a student) and 7 variables in this dataset. The data as a whole was collected as a survey between 2014 and 2015. The variables which are selected for this assignment try to keep track of what type of pedagogical learning method the students used, their overall attitude towards statistics, together with information about their gender, age and exam points. Here is a table with the definitions of the variables:
+
+| Variable|         Variable Type             | Definition                            |
+|-----------------|-----------------|--------------------------------------|
+| gender        | Character        | gender of the student, M(male)/F(female)       |
+| age           | Integer          | age of the student                            |
+| attitude      | Numeric (double) | average of student's overall attitude toward statistics, scale between 1-5 |
+| deep          | Numeric (double) | deep learning metric, scale between 1-5         |
+| stra         | Numeric (double) | strategic learning  metric, scale between 1-5   |
+| surf          | Numeric (double) |  surface learning metric, scale between 1-5   |
+| points        | Integer          | exam points of the student, scale between 1-5  |
+
+#### Part 2: Graphical overview and summaries
+
+We draw a graphical overview of the dataset:
+```{r}
+ggpairs(students2014, mapping = aes(col=gender, alpha=0.3), lower = list(combo = wrap("facethist", bins = 20)))
+```
+We also show summaries of the variables:
+```{r}
+summary(students2014)
+```
+
+*Comments about the outputs*
+
+One can see from the graphical overview the scatter plot, the correlations, and the probability distributions of pairs of each of the variables. And from the summary, one can see the various minima, maxima and mean. Female gender is colored in red, while the male gender is colored in blue.
+
+We see that there are considerably more females than males in the study. Females seem to be much younger than the average male, and the females' attitude towards statistics seem to be considerably lower than their male counterparts. There seems to be a strong positive correlation between attitude and exam points, for both genders. Interestingly, there is a strong negative correlation between attitude and surface learning for males, while there is no significant conclusion for females. Similarly for the correlation between surface and deep learning. Negative correlation means that male students who prefer surface learning are more likely to have a negative attitude towards statistics.
+
+#### Part 3: Model fitting
+We choose the variables attitude, strategic learning and surface learning as explanatory variables, and construct a linear regression for the dependent variable "exam points".
+```{r}
+my_model <- lm(points ~ attitude + stra +surf, data = students2014)
+summary(my_model)
+```
+*Comments about the result:*
+
+One can see the the adjusted R-squared value is 0.1927, which means the variables attitude, strategic learning and surface learning can explain up to 19.27% deviation within the exam points of a student. Moreover, attitude is considerably significant with a p-value of about $1.93*10^{-8}$, much less than the general lowest threshold of 0.001. Unfortunately, the other variables are not significant, with p-values above 0.1. So it is highly unlikely that strategic learning and surface learning have an explanatory power as much as attitude. The model has an overall p-value of $3.156*10^{-8}$, which is very low, so the model is significant overall.
+
+##### Another model
+We now remove the variables stra and surf, since both are not very statistically significant, and try to form a new model:
+```{r}
+my_model2 <- lm(points ~ attitude , data = students2014)
+summary(my_model2)
+```
+*Comments about the new result:*
+
+As expected, the new result improved the statistical significance of the remaining explanatory variable "attitude", to about $4.12*10^{-9}$. The overall p-value is also the same as the one for attitude since we are now using a univariate linear regression. Thus, when we compare this model to the previous one, there has been a significant increase in the trustworthiness of the model. But the adjusted R-square value is now 0.1856, which is lower than the previous one. This means that the model has lost some explanatory power, and now can explain up to 18.56% deviation within the exam points. This is expected, since if we remove variables from a model, the explanatory power is expected to decrease, but not by much. The multiple R-squared is not an important metric in this case, since we only have one explanatory variable.
+
+#### Part 3: Diagnostics
+
+```{r}
+# place the following four graphics in same plot
+par(mfrow = c(2,2))
+# draw diagnostic plots for the final model
+plot(my_model2, which = c(1,2,5))
+```
+
+*Final comments about the diagnostics:*
+
+The final model seems to be fitting our expectations. Q-Q plot is mostly along the line, which means that the distribution of the model mostly follows that of the normal distribution. Residuals vs Fitted plot shows us that most of the points follow along the line residual=0 in a horizontal strip, which means that the result is well-behaved. There are no obvious outliers, and the result seems random enough. So the assumption of linearity is well-supported. Finally, Residuals vs Leverage plot tells us that there are two data points (namely 56 and 35) sitting very close to Cook's distance, but they do not fall outside of it. Thus none of the data points possess any influential effect on the regression model, but further analysis on the data points 56 and 35 can be made just to be sure.
