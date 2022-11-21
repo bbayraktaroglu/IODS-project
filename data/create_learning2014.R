@@ -3,6 +3,10 @@
 # This file is for the data wrangling part of Assignment 2 of the course "PHD-302 Introduction to Open Data Science 2022"
 # Here is the data source: http://www.helsinki.fi/~kvehkala/JYTmooc/JYTOPKYS3-data.txt
 
+# setting up some packages
+library(tidyverse)
+library(dplyr)
+
 # read the learning2014 data from the source into R
 lrn14 <- read.table("http://www.helsinki.fi/~kvehkala/JYTmooc/JYTOPKYS3-data.txt", sep="\t", header=TRUE)
 
