@@ -22,7 +22,7 @@ library(purrr)
 
 #### Part 1: Reading the dataset
 
-```{r,echo=FALSE}
+```{r}
 # reading the required file for the assignment
 students2014 <- read.csv("learning2014.csv", sep = ",", header = TRUE)
 ```
@@ -53,6 +53,7 @@ We draw a graphical overview of the dataset:
 ```{r}
 ggpairs(students2014, mapping = aes(col=gender, alpha=0.3), lower = list(combo = wrap("facethist", bins = 20)))
 ```
+
 We also show summaries of the variables:
 ```{r}
 summary(students2014)
