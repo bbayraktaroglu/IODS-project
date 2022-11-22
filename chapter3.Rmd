@@ -1,0 +1,258 @@
+# Assignment 3: Logistic Regression
+
+This week I have worked on logistic regression. Slowly but surely, I am starting to feel comfortable with R and RMarkdown. I hope next week is going to be even more easier for me. Using some peer reviews that I have obtained last week, there was an overhaul in my course diary. Now, it should look nicer.
+
+```{r}
+date()
+```
+## 3.1: Data wrangling
+
+This week, data wrangling felt considerably easy. I followed the tasks and used some help from the Exercise 3. The R code of the data wrangling part is in the data folder of my Github repository. I will put the link here as well: https://github.com/bbayraktaroglu/IODS-project/blob/master/data/create_alc.R
+
+
+
+## 3.2 Analysis 
+
+### Setting up the packages
+
+```{r, warning=FALSE, message =FALSE}
+library(tidyverse)
+library(tidyr)
+library(dplyr)
+library(ggplot2)
+library(readr)
+library(boot)
+library(GGally)            
+library(purrr)
+library(gmodels)
+library(knitr)
+library(patchwork)
+library(finalfit)
+library(stringr)
+library(caTools) 
+library(caret)
+```
+
+### 3.2.1: Reading the dataset
+
+```{r}
+# set the working directory
+setwd("/Users/barancik/Github/IODS-project/data")
+# reading the required file for the assignment
+alc <- read.csv("alc.csv", sep = ",", header = TRUE)
+```
+
+We now compute the dimensions of the data and look at its structure:
+
+```{r}
+dim(alc)
+str(alc)
+```
+*Description of the dataset:*
+
+There are 370 observations (each representing a student) and 35 variables in this dataset. The data as a whole was collected as a survey on 27.11.2014, from two different Portuguese schools. The data consists of measurements regarding success of the students in two different subjects: Mathematics and Portuguese language. The variables in this assignment try to keep track of some background information about the student, like age, sex, etc., and important measures regarding the success of the students such as number of past class failures, number of school absences, current health status, alcohol consumption, etc. Some of the variables are binary like the sex or internet access, some are numeric, and some are nominal answers like 'mother's job'. Some numeric ones are between 1-5, while some are not bounded. The grades (G1, G2, G3) are between 0-20, and each represent grades obtained in different periods. 
+
+The dataset for maths and Portuguese language are combined by taking averages, including the grade variables. We combined the data into one single data which only includes the students who took both courses. The variable 'alc_use' is the average of workday alcohol consumption and weekend alcohol consumption. 'high_use' is TRUE if 'alc_use' is higher than 2 and FALSE otherwise. 
+
+### 3.3.2: Hypotheses
+
+Our main aim is to understand the relationship between alcohol consumption and other variables in the data. We choose the variables 'failures', 'absences', 'sex' and 'famrel'. We hypothesize that there is a correlation between 'high_use' and 'failures' (number of past failures), 'absences' (number of school absences) and 'famrel' (quality of family relations). We also hypothesize that there is a correlation between being a male and high consumption of alcohol. 
+
+Having high alcohol consumption should in principle be correlated with the number of past failures, since the student might have a serious alcohol problem, thus creating high number of failures. 
+
+Similarly, high alcohol consumption is expected to be correlated with high number of absences, since if the student is intoxicated almost always, then attending a class becomes difficult if not impossible.
+
+For family relations, we expect that bad family relations is correlated with high alcohol consumption, since students may try to escape from troublesome relations at home and alcohol is one such solution.
+
+Finally, we expect high alcohol consumption from male students, but we accept that this could be read off as a sexist expectation.
+
+### 3.3.3 Plots
+We now draw some plots regarding high alcohol usage versus the hypothesized variables above:
+```{r}
+# put the hypothesized  variables in new data frame
+keep_columns <- c("high_use", "failures", "absences", "famrel", "sex")
+alc_hypo <- select(alc, one_of(keep_columns))
+```
+
+Let's now draw a scatter plot to first summarize everything:
+```{r}
+ggpairs(alc_hypo, mapping = aes(col=sex, alpha=0.3), lower = list(combo = wrap("facethist", bins = 20)))
+```
+
+Now let's start with a bar plot between high alcohol consumption and sex:
+
+```{r}
+# initialize a plot of 'high_use'
+g1 <- ggplot(data = alc, aes(x = high_use))
+
+# draw a bar plot of high_use by sex
+g1 + geom_bar()+facet_wrap("sex")
+```
+
+We can see that there can definitely be some correlation with being a male and having high alcohol consumption. Percentage of females who drink is very small compared to females who do not. But this ratio increases for males.
+
+We now construct a bar plot of each variable:
+```{r}
+# initialize a plot of 'high_use'
+g2 <- ggplot(data = alc, aes(x = high_use))
+
+# draw a bar plot of high_use by failures
+g2 + geom_bar()+facet_wrap("failures")
+```
+
+We see that eventually, similar to sex, the ratio of high to low alcohol consumption increases as the number of past failures increase. So there could be some correlation.
+
+```{r}
+# initialize a plot of 'high_use'
+g3 <- ggplot(data = alc, aes(x = high_use))
+
+# draw a bar plot of high_use by absences
+g3 + geom_bar()+facet_wrap("absences")
+```
+
+We see that similar to 'sex' and 'failures', the ratio of high to low alcohol consumption increases as the number of absences increase. So there could again be some correlation.
+
+```{r}
+# initialize a plot of 'high_use'
+g3 <- ggplot(data = alc, aes(x = high_use))
+
+# draw a bar plot of high_use by family relations
+g3 + geom_bar()+facet_wrap("famrel")
+```
+
+Finally for family relations, we again have a similar situation, but it is a little bit complicated. Overall, it seems again that the ratio of high to low alcohol consumption increases as the family relations get worse.
+
+We also draw a bar plot which includes all of our explanatory variables, together with the dependent variable:
+```{r}
+
+# draw a bar plot of each variable
+gather(alc_hypo) %>% ggplot(aes(value)) + geom_bar()+ facet_wrap("key", scales = "free")
+
+```
+
+Finally, a boxplot of family relations and absences by alcohol consumption and sex:
+```{r}
+# initialize a plot of high_use and family relations
+g1 <- ggplot(alc, aes(x = high_use, y = famrel, col = sex))
+
+# define the plot as a boxplot and draw it
+g1 + geom_boxplot() + ylab("family relations")+ggtitle("Student family relations by alcohol consumption and sex")
+
+# initialize a plot of high_use and absences
+g2<- ggplot(alc, aes(x = high_use, y = absences, col = sex))
+
+# define the plot as a box plot and draw it
+g2 + geom_boxplot() + ylab("absences") +ggtitle("Student absences by alcohol consumption and sex")
+
+```
+
+*Overall observations*
+
+We see that there could be some correlation between the hypothesized explanatory variables (failures, absences, sex, family relations) and the dependent variable (high alcohol consumption). We will further analyze this.
+
+### 3.3.4 Using logistic regression
+
+We now move onto a more statistical way of showing why our hypotheses are (significantly) true. We will use logistic regression to accomplish this:
+
+```{r}
+# find the model with glm()
+m <- glm(high_use ~ failures + absences + sex + famrel, data = alc, family = "binomial")
+
+# print out a summary of the model
+summary(m)
+
+# print out the coefficients of the model
+coef(m)
+
+# compute odds ratios (OR)
+OR <- coef(m) %>% exp
+
+# compute confidence intervals (CI)
+CI<- exp(confint(m))
+
+# print out the odds ratios with their confidence intervals
+cbind(OR, CI)
+
+
+```
+We now interpret the summary. Observe that absences and sex (male) have a highly significant (positive, since coefficient is positive) correlation with high_use, with p-value less than 0.001. Failures have a significant (positive) correlation with high_use, with p-value between 0.01 and 0.001. Finally, family relations have a significant (negative, since the coefficient is negative) correlation with high_use, with p-value between 0.05 and 0.01. All of our hypotheses can be accepted and are indeed significant enough. If one surmises that the p-value should be less than 0.01 to achieve even greater significance, then family relations loses its significant correlation with high-use.
+
+We now interpret the coefficients as odd ratios. Note that the exponentials of the coefficients of a logistic regression model can be interpreted as odds ratios between a unit change (vs. no change) in the corresponding explanatory variable:
+
+1. We see that odd ratio of failure is about 1.77. This means that for each unit of failure, the increase in odds of having a student with high alcohol consumption is about 1.77 times. Thus, more failures mean higher odds of having high alcohol consumption, as hypothesized earlier. 
+
+2. Similarly, for each unit of absences, the increase in odds of having a student with high alcohol consumption is about 1.09 times, which is very close to 1, thus there is almost no change in high alcohol consumption, but it is still greater than 1, so it is in line with our hypothesis. 
+
+3. Odds ratio for sex (male) is about 2,85, which indicates that changing sex (i.e. increasing the odds of being a male), alters the odds of having a student with high alcohol consumption the most. This is also in line with our hypothesis, since we said that being a male should be positively correlated with high alcohol consumption.
+
+4. Finally, odds ratio of family relations is less than 1, which means that we are losing in the odds of having high alcohol consumption if we increase family relations. This also is in line with our hypothesis: better family relations=low alcohol consumption.
+
+### 3.3.5 Predictive power of the model
+
+We compute the predictive power of the model with failures, absences, sex and family relations as our explanatory variables and high_use as the dependent variable. We excluded none of the initial choice for the explanatory variables, since in the last section we found a significant correlation between them and high_use.
+```{r}
+# fit the model
+m <- glm(high_use ~ failures + absences + sex + famrel, data = alc, family = "binomial")
+
+# predict() the probability of high_use
+probabilities <- predict(m, type = "response")
+
+library(dplyr)
+# add the predicted probabilities to 'alc'
+alc <- mutate(alc, probability = probabilities)
+
+# use the probabilities to make a prediction of high_use
+alc <- mutate(alc, prediction = probability>0.5)
+
+# see the last ten original classes, predicted probabilities, and class predictions
+select(alc, failures, absences, sex, famrel, high_use, probability, prediction) %>% tail(10)
+
+# tabulate the target variable versus the predictions
+table(high_use = alc$high_use, prediction = alc$prediction)
+
+
+```
+We see that our model correctly predicts 244 false and 34 true observations. The rest are inaccurately classified individuals. We can graph the actual values vs predictions:
+
+```{r}
+# initialize a plot of 'high_use' versus 'probability' in 'alc'
+g <- ggplot(alc, aes(x = probability, y = high_use),aes(col=prediction))
+
+# define the geom as points and draw the plot
+g + geom_point()
+
+# tabulate the target variable versus the predictions
+table(high_use = alc$high_use, prediction = alc$prediction) %>% prop.table() %>%addmargins()
+
+```
+We now compute the average number of inaccurately classified individuals:
+```{r}
+# Work with the exercise in this chunk, step-by-step. Fix the R code!
+# the logistic regression model m and dataset alc with predictions are available
+
+# define a loss function (mean prediction error)
+loss_func <- function(class, prob) {
+  n_wrong <- abs(class - prob) > 0.5
+  mean(n_wrong)
+}
+
+# call loss_func to compute the average number of wrong predictions in the (training) data
+loss_func(class = alc$high_use, prob = alc$probability)
+
+```
+We find a number of about 0.25. This means that on average, 1 out of 4 people are inaccurately classified, meaning that they are falsely accused of heavy drinking while actually being light drinkers, or vice versa.
+
+### 3.3.6: Bonus
+
+We perform 10-fold cross validation:
+
+```{r}
+
+# K-fold cross-validation
+library(boot)
+cv <- cv.glm(data = alc, cost = loss_func, glmfit = m, K = 10)
+
+# average number of wrong predictions in the cross validation
+cv$delta[1]
+```
+We obtain a number of about 0.26, which is the same if not a little bit worse than the predictions in the Exercise. Thus the test performance is almost identical. This is largely due to family relations having a small impact on the dependent variable, compared to sex or failures, thus including family relations did not create a better model, and may in fact worsen it.
