@@ -1,16 +1,18 @@
-### Assignment 2: Linear Regression
+# Assignment 2: Linear Regression
 
 This week I have worked on linear regression. To be honest, last time I studied this subject was almost 8 years ago during my bachelor studies, and although the subject is quite easy, I still find some parts quite fascinating. I have never worked with R, so this week was more of an introduction to hands-on R experience compared to last week's assignment. R syntax seems intuitive, compared to less user-friendly languages like C or even Java.
-
-#### Data wrangling
-
-The task for data wrangling seemed daunting at first, but the individual steps were already built from the ground up in the exercise set, so I have not gotten into any trouble.
-
 
 ```{r}
 date()
 ```
-#### Setting up the packages
+## 2.1 Data wrangling
+
+The task for data wrangling seemed daunting at first, but the individual steps were already built from the ground up in the exercise set, so I have not gotten into any trouble.
+
+
+## 2.2 Analysis 
+
+### Setting up the packages
 
 ```{r, warning=FALSE, message =FALSE}
 library(tidyverse)
@@ -20,7 +22,7 @@ library(GGally)
 library(purrr)
 ```
 
-#### Part 1: Reading the dataset
+### 2.2.1: Reading the dataset
 
 ```{r}
 # reading the required file for the assignment
@@ -47,7 +49,7 @@ There are 166 observations (each representing a student) and 7 variables in this
 | surf          | Numeric (double) |  surface learning metric, scale between 1-5   |
 | points        | Integer          | exam points of the student, scale between 1-5  |
 
-#### Part 2: Graphical overview and summaries
+### 2.2.2: Graphical overview and summaries
 
 We draw a graphical overview of the dataset:
 ```{r}
@@ -65,7 +67,7 @@ One can see from the graphical overview the scatter plot, the correlations, and 
 
 We see that there are considerably more females than males in the study. Females seem to be much younger than the average male, and the females' attitude towards statistics seem to be considerably lower than their male counterparts. There seems to be a strong positive correlation between attitude and exam points, for both genders. Interestingly, there is a strong negative correlation between attitude and surface learning for males, while there is no significant conclusion for females. Similarly for the correlation between surface and deep learning. Negative correlation means that male students who prefer surface learning are more likely to have a negative attitude towards statistics.
 
-#### Part 3: Model fitting
+### 2.2.3: Model fitting
 We choose the variables attitude, strategic learning and surface learning as explanatory variables, and construct a linear regression for the dependent variable "exam points".
 ```{r}
 my_model <- lm(points ~ attitude + stra +surf, data = students2014)
@@ -75,7 +77,7 @@ summary(my_model)
 
 One can see the the adjusted R-squared value is 0.1927, which means the variables attitude, strategic learning and surface learning can explain up to 19.27% deviation within the exam points of a student. Moreover, attitude is considerably significant with a p-value of about $1.93*10^{-8}$, much less than the general lowest threshold of 0.001. Unfortunately, the other variables are not significant, with p-values above 0.1. So it is highly unlikely that strategic learning and surface learning have an explanatory power as much as attitude. The model has an overall p-value of $3.156*10^{-8}$, which is very low, so the model is significant overall.
 
-##### Another model
+#### Another model
 We now remove the variables stra and surf, since both are not very statistically significant, and try to form a new model:
 ```{r}
 my_model2 <- lm(points ~ attitude , data = students2014)
@@ -85,7 +87,7 @@ summary(my_model2)
 
 As expected, the new result improved the statistical significance of the remaining explanatory variable "attitude", to about $4.12*10^{-9}$. The overall p-value is also the same as the one for attitude since we are now using a univariate linear regression. Thus, when we compare this model to the previous one, there has been a significant increase in the trustworthiness of the model. But the adjusted R-square value is now 0.1856, which is lower than the previous one. This means that the model has lost some explanatory power, and now can explain up to 18.56% deviation within the exam points. This is expected, since if we remove variables from a model, the explanatory power is expected to decrease, but not by much. The multiple R-squared is not an important metric in this case, since we only have one explanatory variable.
 
-#### Part 3: Diagnostics
+### 2.2.4: Diagnostics
 
 ```{r}
 # place the following four graphics in same plot
