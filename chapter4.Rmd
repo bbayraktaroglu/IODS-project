@@ -1,0 +1,260 @@
+# Assignment 4: Clustering and classification
+
+This week I have worked on clustering and classification. This week definitely felt much more easier for me. 
+
+```{r}
+date()
+```
+## 4.1: Data wrangling
+
+This week, data wrangling felt even easier than the last week. I mostly used some help from create_alc.R. The R code of the data wrangling part is in the data folder of my Github repository. I will put the link here as well: https://github.com/bbayraktaroglu/IODS-project/blob/master/data/create_human.R
+
+
+
+## 4.2 Analysis 
+
+### Setting up the packages
+```{r, warning=FALSE, message =FALSE}
+
+library(MASS)
+library(dplyr)
+library(tidyr)
+library(tidyverse)
+library(corrplot)
+library(ggplot2)
+library(plotly)
+```
+
+### 4.2.1: Reading the dataset
+
+```{r}
+# reading the required file for the assignment
+data("Boston")
+# checking out its dimension, structure and summary
+dim(Boston)
+str(Boston)
+summary(Boston)
+```
+In the Boston dataset, there are 506 observations and 14 variables. It is included in the MASS package of R. This data frame contains gathered data related to housing values in suburbs of Boston. Most of the variables are numeric (float), while "chas" and "rad" variables are integers.
+
+### 4.2.2 Plots
+
+Let's put our newly learned knowledge about correlation plots to good use. The following is the correlation matrix and its various plots of the Boston data:
+```{r}
+# calculating the correlation matrix, also round it to 2 digits
+cor_matrix <- cor(Boston) %>% round(digits=2)
+
+# print the correlation matrix
+print(cor_matrix)
+
+# visualize the correlation matrix
+library(corrplot)
+corrplot(cor_matrix, method="circle")
+corrplot(cor_matrix, method="number")
+
+```
+
+Observe that most of the variables are more or less correlated with each other, but the "chas" variable is mostly correlated with itself, while having correlation very close to 0 with the other variables. We know from basic probability theory that uncorrelated data does not imply independence, so we cannot infer that "chas" is independent from the other variables. We can only say that it is almost uncorrelated from the other variables. "rad" and "indus" has high overall positive correlation with most of the other variables (except "chas"). "rad" has 0.91 correlation with "tax" and 0.72 with "indus". "indus" has -0.71 correlation (strong negative correlation) with "dis", while "nox" has -0.77 correlation with "dis".
+
+### 4.2.3 Standardize the dataset and print scaled data summary
+
+We will scale the data by subtract the column means from the corresponding columns and divide the difference with standard deviation. This normalizes the variables to be centered with standard deviation 1.
+
+```{r}
+# scaling the Boston
+boston_scaled <- as.data.frame(scale(Boston))
+
+# summaries of the scaled variables
+summary(boston_scaled)
+
+```
+
+We now create a categorical variable of the crime rate in the Boston dataset (from the scaled crime rate). We will use the quantiles as the break points in the categorical variable. 
+
+We will then drop the old crime rate variable from the dataset. Afterwards, we divide the dataset to train and test sets, so that 80% of the data belongs to the train set.
+
+```{r}
+# creating a categorical variable called "crime" from scaled crime rate
+boston_scaled$crim <- as.numeric(boston_scaled$crim)
+crime <- cut(boston_scaled$crim, breaks = quantile(boston_scaled$crim), include.lowest = TRUE, label=c("low", "med_low", "med_high", "high"))
+
+# remove original crim from the dataset
+boston_scaled <- boston_scaled %>% dplyr::select(-crim)
+
+# add the new categorical variable to scaled data
+boston_scaled <- data.frame(boston_scaled, crime)
+
+# number of rows in the Boston dataset
+n <- nrow(boston_scaled) 
+
+# choose randomly 80% of the rows
+ind <- sample(n,  size = n * 0.8)
+
+# creating the train set
+train <- boston_scaled[ind,]
+
+# creating the test set 
+test <- boston_scaled[-ind,]
+
+```
+
+### 4.2.4 Fit the LDA and draw its (bi)plot
+
+We will now fit the linear discriminant analysis on the train set. We will use the categorical crime rate as the target variable and all the other variables in the dataset as predictor variables. We then draw the LDA (bi)plot.
+
+```{r}
+# linear discriminant analysis
+lda.fit <- lda(crime ~ . , data = train)
+
+# the function for lda biplot arrows
+lda.arrows <- function(x, myscale = 1, arrow_heads = 0.1, color = "red", tex = 0.75, choices = c(1,2)){
+  heads <- coef(x)
+  arrows(x0 = 0, y0 = 0, 
+         x1 = myscale * heads[,choices[1]], 
+         y1 = myscale * heads[,choices[2]], col=color, length = arrow_heads)
+  text(myscale * heads[,choices], labels = row.names(heads), 
+       cex = tex, col=color, pos=3)
+}
+
+# target classes as numeric
+classes <- as.numeric(train$crime)
+
+# plot the lda results
+plot(lda.fit, dimen = 2, col=classes, pch=classes)
+lda.arrows(lda.fit, myscale = 1)
+
+```
+Observe that, the LDA plot predicts "rad" has the most variation in the dataset, towards the mostly "high" cluster.
+
+### 4.2.5 LDA prediction
+```{r}
+set.seed(123)
+
+# saving the correct classes from test data
+correct_classes <-test$crime
+
+# removing the crime variable from test data
+test <- dplyr::select(test, -crime)
+
+# predicting classes with test data
+lda.pred <- predict(lda.fit, newdata = test)
+
+# cross tabulating the results
+table(correct = correct_classes, predicted = lda.pred$class)
+
+```
+
+We find that almost all of the results are accurately predicted. Correctly classified observations are about 67, while the rest (about 35) are incorrectly classified. The inaccuracy rate of the LDA is about 34% (can be as low as 23% in some other sampling with another other seed).
+
+### 4.2.6 K-means clustering
+
+We reload Boston, rescale it and compute its Euclidean distance.
+```{r}
+# reload the data
+data("Boston")
+
+# scale the data again
+boston_scaled <- as.data.frame(scale(Boston))
+
+# compute the Euclidean distance of Boston
+dist_eu <- dist(boston_scaled)
+
+# summary of dist_eu 
+summary(dist_eu)
+```
+
+We now run the k-means algorithm:
+```{r}
+set.seed(123)
+
+# determine the number of clusters
+k_max <- 10
+
+# calculate the total within sum of squares
+twcss <- sapply(1:k_max, function(k){kmeans(Boston, k)$tot.withinss})
+
+# visualize the results
+qplot(x = 1:k_max, y = twcss, geom = 'line')
+
+```
+The above plot extensively shows us that there is a significant drop at the value 2. Thus, the optimal number of clusters is 2. 
+
+We now run k-means algorithm again, this time with 2 clusters, and plot the Boston dataset with the clusters. The clusters will be colored in red and black.
+
+```{r}
+set.seed(123)
+
+# k-means clustering with 2 clusters
+km <- kmeans(Boston, centers = 2)
+
+# plot the Boston dataset with clusters
+pairs(Boston, col = km$cluster)
+
+```
+
+If one zooms in to the plot above, one would see that "rad" has nicely separated clusters across all of the possible pairings. "tax" also has good separation of clusters. The other variables are a complete mess, and no other conclusion can be drawn.
+
+### 4.2.7 Bonus: K-means algorithm and LDA
+
+We will now perform k-means algorithm on the original Boston data (after scaling). We choose 5 clusters. We then perform LDA using the clusters as target classes. We will include all the variables in the Boston data in the LDA model. 
+
+```{r}
+set.seed(5)
+# reload the data
+data("Boston")
+
+# scale the data again
+boston_scaled <- as.data.frame(scale(Boston))
+
+# k-means clustering with 5 clusters
+km <- kmeans(Boston, centers = 5)
+
+# linear discriminant analysis on the clusters, with data=boston_scaled, and target variable km$cluster
+lda.fit <- lda(km$cluster ~ ., data = boston_scaled)
+
+# target classes as numeric
+classes <- as.numeric(km$cluster)
+
+# plot the lda results. Note that lda.arrows is the same function we have used above
+plot(lda.fit, dimen = 2, col = classes, pch = classes)
+lda.arrows(lda.fit, myscale = 1)
+```
+Visualize the results with a biplot (include arrows representing the relationships of the original variables to the LDA solution). Interpret the results. Which variables are the most influential linear separators for the clusters?
+
+We observe in the above biplot that "tax" and "rad" have the most variation in the dataset. Moreover, the K-means seems to form accurate and separate clusters.
+
+### 4.2.8 Super-Bonus: A cool 3D plot of LDA and K-means
+
+We will recall the code for the (scaled) train data that we used to fit the LDA. We then create a matrix product, which is a projection of the data points.
+```{r}
+set.seed(123)
+# LDA
+
+lda.fit <- lda(crime ~ ., data = train)
+
+model_predictors <- dplyr::select(train, -crime)
+
+# check the dimensions
+dim(model_predictors)
+dim(lda.fit$scaling)
+
+# matrix multiplication
+matrix_product <- as.matrix(model_predictors) %*% lda.fit$scaling
+matrix_product <- as.data.frame(matrix_product)
+```
+
+We now create a 3D plot of the columns of the matrix product:
+```{r}
+library(plotly)
+
+plot_ly(x = matrix_product$LD1, y = matrix_product$LD2, z = matrix_product$LD3, type= 'scatter3d', mode='markers', color=~train$crime)
+```
+
+Now let's run the k-means algorithm on the matrix product with 4 clusters (since the number of clusters of crime is 4), and draw another 3D plot where the color is defined by the clusters of the k-means.
+```{r}
+set.seed(5)
+km = kmeans(model_predictors, centers = 4)
+
+plot_ly(x = matrix_product$LD1, y = matrix_product$LD2, z = matrix_product$LD3, type= 'scatter3d', mode='markers', color=~factor(km$cluster))
+```
+The k-means clustering is mostly successful. One can see that there are 2 superclusters, while the clusters 1,2,4 (mostly) form their own subclusters under one of the superclusters. The cluster 3 is shared between the huge clusters. In the clusters for "crime", "med_high" has this same property, while the other clusters are nicely separated into two superclusters. Thus, the k-means clustering plot with 4 clusters seems to give similar results compared to the lda.fit of the "crime" variable.
