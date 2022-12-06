@@ -1,0 +1,177 @@
+# Assignment 5: Dimensionality reduction techniques
+
+This week I have worked on dimensionality reduction techniques. It is getting easier and easier. It feels like using R is such a breeze now.
+
+```{r}
+date()
+```
+## 4.1: Data wrangling
+
+This week, data wrangling was related to the last week's data wrangling. So I continued from where I left. The R code of the data wrangling part is in the data folder of my Github repository. I will put the link here as well: https://github.com/bbayraktaroglu/IODS-project/blob/master/data/create_human.R
+
+
+
+## 4.2 Analysis 
+
+### Setting up the packages
+```{r, warning=FALSE, message =FALSE}
+
+library(dplyr)
+library(tidyr)
+library(tidyverse)
+library(corrplot)
+library(stringr)
+library(GGally)
+library(ggplot2)
+library(plotly)
+library(FactoMineR)
+```
+
+### 4.2.1: Reading the dataset
+```{r}
+# reading the required file for the assignment
+human<-read.csv( "data/human.csv",row.names = 1)
+```
+
+### 4.2.2 Plots
+```{r, message=FALSE} 
+#message=FALSE just deletes the extra messages that appear in ggpairs
+
+# checking out its dimension, structure and summary
+dim(human)
+str(human)
+summary(human)
+
+# visualize the 'human' variables
+ggpairs(human)
+
+
+# compute the correlation matrix and visualize it with corrplot
+cor(human)%>%corrplot()
+```
+
+Let's interpret the data. From the ggpairs plot, we can see that the distributions of Edu2.FM, Labo.FM, Life.Exp, Edu,Exp and Parli.F are almost symmetric with respect to their means, while the distributions of GNI, Mat.Mor and Ado.Birth are highly skewed towards small values. 
+
+From the scatter plots and the correlation numbers, one can see that Ado.Birth is highly correlated with almost all of the variables, except Labo.FM and Parli.F. It is positively correlated with Mat.Mor with high significance, and negatively correlated with the rest. Thus, one can say that countries with high number of adolescent births also have high maternal mortality, which does make sense. Parli.F is not too much significantly correlated with any of the variables, except with Labo.FM with positive correlation. Mat.Mor and other variables are also similar to Ado.Birth: it is significantly correlated with almost all of the variables, except Labo.FM (not too significant), and Parli.F (no significance at all).
+
+Finally, from the correlation plot, one can see that Labo.FM and Parli.F are definitely not correlated with any of the variables. This means that proportion of females to males in the labour force is not significantly correlated with any other variable, similar with percentage of female representatives in parliament. Thus, gender equality may not have a high effect on other variables. 
+
+However, Edu2.FM is also a metric of gender equality. It measures the proportion of females to males with at least secondary education. Edu2.FM is highly correlated with all of the variables, except Labo.FM and Parli.F as usual. It is positively correlated with Life.Exp, Edu.Exp and GNI, while being negatively correlated with Mat.Mor and Ado.Birth. This suggest that a more gender equal secondary education is highly correlated with a better overall society in terms of the variables such as high life expectancy, high expected years of schooling, high gross national income per capita, low maternal mortality and low adolescent births rate.
+
+### 4.2.3 PCA
+
+Let's start with a PCA analysis of non-standardized variables:
+```{r}
+# perform principal component analysis (with the SVD method)
+pca_human <- prcomp(human)
+
+# print out a summary of pca_human, to show the variability
+summary(pca_human)
+
+# draw a biplot of the principal component representation and the original variables
+biplot(pca_human, choices = 1:2, cex = c(0.8, 1),col = c("grey40", "deeppink2"))
+```
+
+
+Now we standardize the human data and perform PCA again:
+```{r}
+# standardize the variables
+human_std <- scale(human)
+
+# print out summaries of the standardized variables
+summary(human_std)
+
+# perform principal component analysis (with the SVD method), and print out its summary
+pca_human <- prcomp(human_std)
+summary(pca_human)
+
+# draw a biplot of the principal component representation and the original variables
+biplot(pca_human, choices = 1:2, cex = c(0.8, 1),col = c("grey40", "deeppink2"))
+
+# create and print out a summary of pca_human
+s <- summary(pca_human)
+
+
+# rounded percentanges of variance captured by each PC
+pca_pr <- round(1*s$importance[2, ], digits = 1)*100
+
+# print out the percentages of variance
+pca_pr
+
+# create object pc_lab to be used as axis labels
+pc_lab<-paste0(names(pca_pr), " (", pca_pr, "%)")
+
+# draw a biplot
+biplot(pca_human, cex = c(0.8, 1), col = c("grey40", "deeppink2"), xlab = pc_lab[1], ylab = pc_lab[2])
+```
+Now let's interpret the results. Observe that the results are completely different than each other. In the non-standardized data, GNI  is highly aligned with PC1 axis (negatively correlated), and its arrow has a very long length. This means that its variance is so high that PC1 can only capture GNI, and the effects of other variables are lost. This is due to the fact that the order of magnitude of GNI is of $10^5$, while the other variables are mostly within order of magnitude 0.1-10. Thus, we definitely need to normalize GNI to see the effect of the other variables in the model.
+
+Now, in the standardized data we can finally see the actual correlations of the other variables. Apart from GNI, we have Edu.Exp, Edu2.FM and Life.Exp all negatively correlated with PC1, while Ado.Birth and Mat.Mor are positively correlated with PC1. We also see Labo.FM and Parli.FM mostly positively correlated with PC2. We can also confirm that there is high positive correlation between GNI, Edu.Exp, Edu2.FM and Life.Exp, and high negative correlation between Ado.Birth and Mat.Mor. Labo.FM and Parli.FM are mostly positively correlated with each other. This confirms our earlier observation. A better quality of life within a country (which is a towards low PC1) equates to higher gross national income per capita, high expected years of schooling, better gender equality in terms of high proportion of females to males with at least secondary education and high life expectancy. We also have a correlation between better quality of life and low maternal mortality and low adolescent births rate. But we have almost no correlation between better quality of life and gender equality in terms of the variables: proportion of females to males in the labour force and percentage of female representatives in parliament. All of this agrees with the previous correlation plot analysis.
+
+### 4.2.4 Interpreting the PCs
+
+As we have said, it is apparent that PC1 is related to the development of a country in terms of overall quality of life. As we have found out, GNI, Edu.Exp, Edu2.FM and Life.Exp are negatively correlated with PC1, while Ado.Birth and Mat.Mor are positively correlated with PC1. This suggests that low PC1 implies a more developed country, while a higher PC1 implies a less developed country. Note that Edu2.FM is actually related to gender equality in education, which implies that a more gender equal education will lead to a more developed country. Similar with Ado.Birth and Mat.Mor, since a lower adolescent birth and lower maternal mortality directly implies that women have better life standards. Thus from our observation, we can see that higher Ado.Birth and Mat.Mor will lead to higher PC1, which is related to how less developed a country is, as we expected from our correlation plot analysis.
+
+We moreover observe that PC2 is somewhat related to other factors of gender equality. Interestingly, other than Edu2.FM, we have Labo.FM and Parli.FM, which seemingly do not impact a better overall quality of life for the people. This suggests that PC2 is actually related to a more philosophical variable: gender equality in day to day life, such as equality in labor force or equality in parliament. Our analysis suggest that these variables are not correlated with GNI or other variables which imply a developed country. In fact, Labo.FM and Parli.FM tend to have almost effect on these variables. This confirms our preliminary correlation plot analysis: Labo.FM and Parli.FM are not correlated with any of the other variables.
+
+### 4.2.5 Tea time
+
+We have the following tea data:
+```{r}
+tea <- read.csv("https://raw.githubusercontent.com/KimmoVehkalahti/Helsinki-Open-Data-Science/master/datasets/tea.csv", stringsAsFactors = TRUE)
+
+#look at the structure and dimension of tea
+str(tea)
+dim(tea)
+
+# for viewing the tea data
+# View(tea)
+```
+
+There are 300 observations (individual people) and 36 variables. Briefly, the tea dataset describes how these 300 people drink tea (18 questions) and what are their product's perception (12 questions). There are also 4 personal questions like age, sex, occupation and age quantile.
+
+### 4.2.6 MCA on tea
+
+We will use Multiple Correspondence Analysis (MCA) on the tea data. We choose the same columns as in the Exercise set 5, namely "Tea", "How", "how", "sugar", "where", "lunch".
+```{r}
+# column names to keep in the dataset
+keep_columns <- c("Tea", "How", "how", "sugar", "where", "lunch")
+
+# select the 'keep_columns' to create a new dataset
+tea_time <- select(tea, keep_columns)
+
+# look at the summaries and structure of the data
+summary(tea_time)
+str(tea_time)
+
+# visualize the dataset
+library(ggplot2)
+pivot_longer(tea_time, cols = everything()) %>% 
+  ggplot(aes(value)) + facet_wrap("name", scales = "free")+geom_bar()+theme(axis.text.x = element_text(angle = 45, hjust = 1, size = 8))
+
+# multiple correspondence analysis
+mca <- MCA(tea_time, graph = FALSE)
+
+# summary of the model
+summary(mca)
+
+# visualize MCA
+plot(mca, invisible=c("ind"), graph.type = "classic", habillage = "quali")
+
+
+```
+
+We now interpret the results. Recall that MCA is a data analysis technique for nominal categorical data (i.e. factor variables), used to detect and represent underlying structures or patterns in a data set. It does this by representing data as points in a low-dimensional Euclidean space. In our case, as one can observe from the summary, MCA generated an 11 dimensional space (corresponding to 11 eigenvalues), with most of the variance focused at the 1st and the 2nd dimensions, about 15.24% and 14.23% of the total variance, respectively.
+
+The first plot shows the number of occurances of each of the answers within a specific categorical variable. Observe that almost everyone drank tea not during lunch, and almost everyone drank tea with no additives. There is an almost 50-50 divide between with sugar vs. with no sugar. People also seem to prefer drinking tea from a teabag, bought from a chain store. Early grey seems to be the most popular type by far.
+
+The second plot visualized the MCA. It give different relationships of different variables. On the plot, each color represents a variable, of which we have 6. There is an intriguing pattern emerging from the MCA plot:
+
+1. People seem to buy unpackaged tea from a tea shop
+2. People that buy tea from a chain store prefer to drink it not during lunch
+3. People prefer to drink earl grey tea with milk and sugar
+4. People prefer to drink black tea with no sugar.
+5. People seem to use teabags as a preferred method for storing and preparing tea, while also putting no additives in the tea.
+6. Finally, people who prefer to buy their tea from both chain stores and tea shops, also prefer to buy their tea in teabags or unpackaged. These seem to be the most indecisive or generic people :)
+
+
